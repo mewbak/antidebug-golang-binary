@@ -1,13 +1,14 @@
 # Antidebug Golang Binary (not spurious) on Windoze
 
-We are going to debug a Golang binary that invokes an antidebug function. This project is also available at [acmpxyz.com/go_antidebug.html](https://acmpxyz.com/go_antidebug.html) There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) 
-about Go programming language but there is not main purpose... However, why is Golang used for malware development? I am not an expertise on it but my opinion is:
+
+This project is also available at [acmpxyz.com/go_antidebug.html](https://acmpxyz.com/go_antidebug.html).
+
+Debugging Golang binaries could be strange, they may be PE or ELF binaries and it is a fairly new language. In this case, the binary has an antidebug user-mode function so we are going to debug it. There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) about Go programming language but there is not main purpose... However, why is Golang used for malware development? I am not an expertise on it but my opinion is:
 
 - **Concurrency** (via [goroutines](https://gobyexample.com/goroutines)) can provide us an easy way to build state graph about our infected endpoint (if we act as *C2* operator). Therefore, we will be able to control more easily from a single binary. I do not
 know if concurrency could fix in dropper or agent; instead, parallelism (in
 my view) is a good feature on dropper or agent in order to decrease
 early detection. For instance, you can simulate many trivial events and cover up few illegitimate events. It is a good discussion. An useful talk about concurrency and parallelism is [Rob Pike's talk](https://blog.golang.org/waza-talk).
- 
 
 - **Statically linked** help us to develop malware not dependent on libraries and versioning. However, this feature could be a disadvantage if we implement a dropper or agent because due to its large size. Note that distribution has to be lightweight. Golang executables have *runtime* functions and they need debug symbols. However, these binaries can be stripped but do not hide much information. If you want to stripped it, check this great post [Shrink your Go binaries with this one weird trick](https://blog.filippo.io/shrink-your-go-binaries-with-this-one-weird-trick/).
 
