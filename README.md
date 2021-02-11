@@ -1,4 +1,4 @@
-# Antidebug Golang Binary on Windoze
+# Antidebug Golang binary on Windoze
 
 
 This project is also available at [acmpxyz.com/go_antidebug.html](https://acmpxyz.com/go_antidebug.html).
