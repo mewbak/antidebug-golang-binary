@@ -1,9 +1,9 @@
-# Antidebug Golang Binary (not spurious) on Windoze
+# Antidebug Golang Binary on Windoze
 
 
 This project is also available at [acmpxyz.com/go_antidebug.html](https://acmpxyz.com/go_antidebug.html).
 
-Debugging Golang binaries could be strange, they may be PE or ELF binaries and it is a fairly new language. In this case, the binary has an antidebug user-mode function so we are going to debug it. There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) about Go programming language but there is not main purpose... However, why is Golang used for malware development? I am not an expertise on it but my opinion is:
+Debugging Golang binaries could be strange, they may be PE or ELF binaries and it is a fairly new language. In this case, the binary has an antidebug user-mode function so it can complicate our task. There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) about Go programming language but there is not main purpose... However, why is Golang used for malware development? I am not an expertise on it but my opinion is:
 
 - **Concurrency** (via [goroutines](https://gobyexample.com/goroutines)) can provide us an easy way to build state graph about our infected endpoint (if we act as *C2* operator). Therefore, we will be able to control more easily from a single binary. I do not
 know if concurrency could fix in dropper or agent; instead, parallelism (in
