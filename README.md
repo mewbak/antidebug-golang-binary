@@ -1,6 +1,6 @@
 # Antidebug Golang Binary (not spurious) on Windoze
 
-We are going to debug a Golang binary that invokes an antidebug function. There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) 
+We are going to debug a Golang binary that invokes an antidebug function. This project is also available at [acmpxyz.com/go_antidebug.html](https://acmpxyz.com/go_antidebug.html) There are cool features (that you should read in [Analyzing Golang Executables](https://www.pnfsoftware.com/blog/analyzing-golang-executables#title_basics)) 
 about Go programming language but there is not main purpose... However, why is Golang used for malware development? I am not an expertise on it but my opinion is:
 
 - **Concurrency** (via [goroutines](https://gobyexample.com/goroutines)) can provide us an easy way to build state graph about our infected endpoint (if we act as *C2* operator). Therefore, we will be able to control more easily from a single binary. I do not
