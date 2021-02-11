@@ -10,7 +10,7 @@ know if concurrency could fix in dropper or agent; instead, parallelism (in
 my view) is a good feature on dropper or agent in order to decrease
 early detection. For instance, you can simulate many trivial events and cover up few illegitimate events. It is a good discussion. An useful talk about concurrency and parallelism is [Rob Pike's talk](https://blog.golang.org/waza-talk).
 
-- **Statically linked** help us to develop malware not dependent on libraries and versioning. However, this feature could be a disadvantage if we implement a dropper or agent because due to its large size. Note that distribution has to be lightweight. Golang executables have *runtime* functions and they need debug symbols. However, these binaries can be stripped but do not hide much information. If you want to stripped it, check this great post [Shrink your Go binaries with this one weird trick](https://blog.filippo.io/shrink-your-go-binaries-with-this-one-weird-trick/).
+- **Statically linked** help us to develop malware not dependent on libraries and versioning. However, this feature could be a disadvantage if we implement a dropper or agent because due to its large size. Note that distribution has to be lightweight. Golang executables have *runtime* functions and they need debug symbols. However, these binaries can be stripped but do not hide much information. If you want to stripped it, check [Shrink your Go binaries with this one weird trick](https://blog.filippo.io/shrink-your-go-binaries-with-this-one-weird-trick/).
 
 - **Cross-compiling** is a built-in feature in Golang toolchain. Therefore we can compile a lot of architectures. Despite this, we need to take care with some imports via *syscall* library because antidebug functions are often dependent on the operating system (``syscall.SYS_PTRACE`` vs ``syscall.NewLazyDLL("kernel32.dll").NewProc("IsDebuggerPresent")``). See the following command to check different architectures.
 
@@ -42,7 +42,7 @@ linux/386
 
 ## main-antidebug.exe
 
-Binary executes a trivial function (*XOR bitwise*) that decrypts (or encrypts) an URL. That functionality could be use in order to ofuscate a *C2* server but it is being shown as example. Before that, there is an antidebug function so it makes our task less straightforward. It is worth mentioning that binary does not contain any infectious action. Furthermore, it is not stripped so feel free in order to reverse it :) 
+Binary executes a *XOR bitwise* that decrypts (or encrypts) an URL. That functionality could be use in order to ofuscate a *C2* server. Before that, there is an antidebug function so it makes our task less straightforward. It is worth mentioning that binary does not contain any infectious action. Furthermore, it is not stripped so feel free in order to reverse it :) 
 
 - [main-antidebug.exe](bin/main-antidebug.exe) 
 
@@ -60,27 +60,31 @@ $ sha256sum main-antidebug.exe
 
 ### PE-bear static analysis
 
-It is time to perform a trivial static analysis with *PE-bear*. If you want to know about PE format, please, check [Micro$oft specification](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format). In the following screenshot we can see some specific characteristics from *File Header*.
+It is time to perform a trivial static analysis with *PE-bear*. If you want to know about PE format, see [Micro$oft specification](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format). In the following screenshot we can see binary characteristics from *File Header*.
 
 ![File Header](images/000-pe-bear-file-header.PNG)
 
-- *Relocation info stripped from file* ``IMAGE_FILE_RELOCS_STRIPPED 0x0001``. In this case *image base field* is ``0x400000`` as we can be seen in *optional header*.
+- *Relocation info stripped from file* ``IMAGE_FILE_RELOCS_STRIPPED 0x0001``. *Image base field* is ``0x400000`` as we can be seen in *optional header*.
+
 *Image only, Windows CE, and Microsoft Windows NT and later. This indicates that the file does not contain base relocations and must therefore be loaded at its preferred base address. If the base address is not available, the loader reports an error. The default behavior of the linker is to strip base relocations from executable (EXE) files.*
 
 - *File is executable (i.e no unresolved external references) ``IMAGE_FILE_EXECUTABLE_IMAGE 0x0002``*. Okay.
+
 *Image only. This indicates that the image file is valid and can be run. If this flag is not set, it indicates a linker error.*
 
-- *App can handle >2gb addresses* ``IMAGE_FILE_LARGE_ADDRESS_ AWARE 0x020``. Okay ()
+- *App can handle >2gb addresses* ``IMAGE_FILE_LARGE_ADDRESS_ AWARE 0x020``. Okay.
+
 *Application can handle > 2-GB addresses.* **OKAY**.
 
 - *Debugging info stripped from file in .DBG file* `` IMAGE_FILE_DEBUG_STRIPPED  0x0200``. Okey, it makes sense... Binary is not stripped but it has not compiled with debug symbols.
+
 *Debugging information is removed from the image file.* 
 
 At least it tells us that it is not a DLL or removable media! We are going to analyz *Optional Header* :).
 
 ![Optional Header](images/000-pe-bear-optional-header.PNG)
 
-We are seeing outstanding features:
+Some features could be the following:
 
 - *Magic Number* is ``0x20B`` so it indicates that binary runs on 64-bit address space (PE32+ format).
 
@@ -96,44 +100,45 @@ Okay, we know a little more about *Optional Header*. Maybe, [*DLL Characteristic
 
 ![Section Header PE-bear](images/000-pe-bear-section-headers.PNG)
 
-As we can see there are [common sections](https://blog.kowalczyk.info/articles/pefileformat.html) (``.text``, ``.rdata``, ``.data``, ``.idata`` and ``.symtab``). Note that ``.text`` section has more raw size than its virtual size therefore is a good indicator that binary is not packed. Furthermore, there are inconsistent sections that I do not understand; ``/4 /19 /32 /46 /63...``. When this occurs I usually use another static analyzer as [pestudio](https://www.winitor.com/) to perform double check ;) 
+As we can see there are [common sections](https://blog.kowalczyk.info/articles/pefileformat.html) (``.text``, ``.rdata``, ``.data``, ``.idata`` and ``.symtab``). Note that ``.text`` section has more raw size than its virtual size therefore is a good indicator that binary is not packed. However, there are inconsistent sections that I do not understand; ``/4 /19 /32 /46 /63...``. When this occurs I usually use another static analyzer as [pestudio](https://www.winitor.com/) to perform double check ;) 
 
 ![Section Header peestudio](images/000-pestudio-section-headers-discardable.PNG)
 
-In this case, sections are equals but they are *discardable*. In user-mode this flag of discardable and non-discardable memory is not necessary because the memory manager performs the task. However, we are unaware that binary has code that is executed in user or kernel mode. A quick look at [What happens when you mark a section as DISCARDABLE?](https://devblogs.microsoft.com/oldnewthing/20120712-00/?p=7143) could be useful in order to understand this flag. In my view, these sections could be runtime initialization variables (code cannot be because they are not marked as executable). Perhaps *IDA* will give us more clues.
+Sections are equals but they are *discardable*. In user-mode this flag of discardable and non-discardable memory is not necessary because the memory manager performs the task. However, we are unaware that binary has code that is executed in user or kernel mode. A quick look at [What happens when you mark a section as DISCARDABLE?](https://devblogs.microsoft.com/oldnewthing/20120712-00/?p=7143) could be useful in order to understand this flag. In my view, these sections could be runtime initialization variables (code cannot be because they are not marked as executable). Perhaps *IDA* will give us more clues.
 
 ### IDA disassembly
 
-*IDA* is good choice for disassembling code and attaching a debugger. In this case we are going to search section and function names. Back to rare sections, we can see that *IDA* contains the following:
+*IDA* is good choice for disassembling code and attaching a debugger. We are going to search section and function names. Back to rare sections, we can see that *IDA* contains the following:
 
 ![IDA Sections](images/000-ida-sections.PNG)
 
-In the above screenshot we see six sections: ``.text``, ``.rdata``, ``.data``, ``.idata``, ``.data`` and ``.idata``. If we compare *virtual-address* (these values are based on *Image Base* value of PE binary ``0x400000``, it is not really a virtual address...), rare sections after ``.data`` section ``0x5AD000``. As we can see *IDA* does not detect them. 
+In the above screenshot we see six sections: ``.text``, ``.rdata``, ``.data``, ``.idata``, ``.data`` and ``.idata``. If we compare *virtual-address* (these values are based on *Image Base* value of PE binary ``0x400000``, it is not really a virtual address...), rare sections after ``.data`` section ``0x5AD000``. We note that *IDA* does not detect them. 
 
 ![Difference between pestudio and IDA sections](images/000-ida-peestudio-section-compare.jpg)
 
-In this case we check after ``0x5AD000`` to see if we can find something.
+In this case we focus after ``0x5AD000`` to see if we can find something.
 
 ![IDA 0x5AD000 section](images/000-ida-5ad0.PNG)
 
-Okay, there is nothing. If you know what these sections are, please contact me via Twitter! [@lfm3773](https://twitter.com/lfm3773). After this little research, we will focus on other stuff.
+Okay, there is nothing. If you know what these sections are, please contact me via Twitter! [@lfm3773](https://twitter.com/lfm3773). After this little research, we are going to see other stuff.
 
-For instance, at a glance functions are useful. We can see a lot of ``runtime_*`` and ``type_*`` functions because is statically-linked. But as we can see there are relevant functions; ``syscall___LazyDLL__Load``, ``syscall____LazyDLL__NewProc``, ``syscall_NewLazyDLL``. It appears that there are functions that are not statically-linked. Check [Golang documentation about *LazyDLL*](https://golang.org/pkg/syscall/?GOOS=windows#LazyDLL).
+For instance, functions names are useful. We can see a lot of ``runtime_*`` and ``type_*`` functions because is statically-linked. But as we can see there are relevant functions; ``syscall___LazyDLL__Load``, ``syscall____LazyDLL__NewProc``, ``syscall_NewLazyDLL``. It seems that there are functions that are not statically-linked. Check [Golang documentation about *LazyDLL*](https://golang.org/pkg/syscall/?GOOS=windows#LazyDLL).
 
 *A LazyDLL implements access to a single DLL. It will delay the load of the DLL until the first call to its Handle method or to one of its LazyProc's Addr method. LazyDLL is subject to the same DLL preloading attacks as documented on LoadDLL.*
 
 ![main-antidebug.exe functions](images/000-ida-functions.PNG)
 ![main-antidebug.exe functions](images/01-ida-lazy-dll.PNG)
 
-But if we search by ``main`` string... Oops! There is a ``main_main`` function and ``main_encryptUrl`` also seems important.
+But if we search by ``main`` string... Oops! There are ``main_main`` and ``main_encryptUrl`` functions. They also seems important.
+
 
 ![main-antidebug.exe functions](images/000-ida-main-functions.PNG)
 
-So we have found the main program! Furthermore, as we can see below, antidebug function is ``main_ProcIsDebuggerPresent`` which belongs to ``kernel32.dll``. According to [offical documentation](https://docs.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-isdebuggerpresent) it *determines whether the calling process is being debugged by a user-mode debugger.*
+We have found the main program! Furthermore, as we can see below, antidebug function is ``main_ProcIsDebuggerPresent`` which belongs to ``kernel32.dll``. According to [offical documentation](https://docs.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-isdebuggerpresent) it *determines whether the calling process is being debugged by a user-mode debugger.*
 
 ![main-antidebug.exe main program](images/000-ida-main-program.PNG)
 
-It is time to save the pseudo-*virtual addresses* because we will need them on debugging process. As we can see on second screenshot, ``rax`` register is passed as an argument and it contains a *code segment* that will contain ``IsDebuggerPresent`` function. More details in [``src/syscall/dll_windows.go`` documentation](https://golang.org/src/syscall/dll_windows.go?s=10248:10317#L325)
+It is time to save the pseudo-*virtual addresses* because we will need them on debugging process. As we can see on second screenshot, ``rax`` register is passed as an argument. Note that it contains a *code segment* that will contain ``IsDebuggerPresent`` function. More details in [``src/syscall/dll_windows.go`` documentation](https://golang.org/src/syscall/dll_windows.go?s=10248:10317#L325)
 
 ![main-antidebug.exe main offset](images/02-ida-main-offset.PNG)
 ![main-antidebug.exe lazy syscall offset](images/06-ida-isdebugpresent-lazy-call.PNG)
@@ -145,7 +150,7 @@ It is time to save the pseudo-*virtual addresses* because we will need them on d
 
 ### x64dbg debugging 
 
-Finally, we are going to set breakpoints at key locations; ``0x4A11F0``, ``0x4A1242``+5 (after function call, at ``cmp`` instruction) and ``0x4A1368``.
+Finally, we are going to set breakpoints at key locations; ``0x4A11F0``, ``0x4A1242``+5 (after function call when ``cmp`` instruction is executed) and ``0x4A1368``.
 
 ![main-antidebug.exe main bp](images/000-x64dbg-bp.PNG)
 
@@ -163,11 +168,11 @@ Then, main goal of post is to bypass antidebug function, therefore we need to ch
 ![main-antidebug.exe main stack with 0](images/02-x64dbg-stack-memory-0.PNG)
 ![main-antidebug.exe main all stack](images/02-x64dbg-stack-memory.PNG)
 
-We run the debugger and we will bypass antidebug function. Finally, last breakpoint has been reached. It is worth noting that we have set another point to see the function result. 
+We run the debugger and we will bypass antidebug function. Finally, last breakpoint has been reached. It is worth noting that we have set another point because we need to known function result.
 
 ![main-antidebug.exe encryptUrl function](images/04-x64dbg-encryptUrlfunc.PNG)
 
-Let's move on to the next breakpoint and we have found the decoded character string ``0xd4ed1be5/t4n4t0$.html``
+Let's move on to the next breakpoint and we have found the decoded string ``0xd4ed1be5/t4n4t0$.html``
 
 ![main-antidebug.exe encryptUrl result](images/04-x64dbg-encryptUrl-func.PNG)
 
@@ -175,7 +180,7 @@ If we write this string on our browser as ``https://0xd4ed1be5/t4n4t0$.html``, w
 
 ![main-antidebug.exe tanatos html](images/09-tanatos-html.PNG)
 
-As we can see URL could be build with hexadecimal characters due to [RFC 1738 - Uniform Resource Locator](https://tools.ietf.org/html/rfc1738). Code has been implemented by me and it has been used for a CTF challenge. Note that this challenge did not include antidebug function. Finally, code is shown below. 
+URL could be build with hexadecimal characters due to [RFC 1738 - Uniform Resource Locator](https://tools.ietf.org/html/rfc1738). Code has been implemented by me and it has been used for a CTF challenge. Note that this challenge did not include antidebug function. Finally, code is shown below. 
 
 <pre><code class="language-go">
 /*
